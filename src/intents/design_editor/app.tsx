@@ -18,7 +18,7 @@ import {
   requestExport,
 } from "@canva/design";
 import { requestOpenExternalUrl } from "@canva/platform";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { FormattedMessage, useIntl } from "react-intl";
 import * as styles from "styles/components.css";
 
@@ -27,6 +27,8 @@ const CONNECTOR_DOWNLOAD_URL =
   "https://github.com/PCT-BR/Canvaconnector-for-piwigo";
 const FALLBACK_THUMBNAIL_URL =
   "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='320' height='240' viewBox='0 0 320 240'%3E%3Crect width='320' height='240' fill='%23edf0f2'/%3E%3Cpath d='M108 156l34-38 26 29 18-20 38 43H96z' fill='%23b8c1cc'/%3E%3Ccircle cx='213' cy='86' r='18' fill='%23b8c1cc'/%3E%3C/svg%3E";
+const PHOTOS_PER_PAGE = 24;
+const THUMBNAIL_HYDRATION_CONCURRENCY = 4;
 
 type ConnectionState = {
   connected: boolean;
@@ -53,13 +55,31 @@ type Photo = {
   title: string;
   filename: string;
   mimeType: "image/jpeg" | "image/png";
+  assetMimeType?: "image/jpeg" | "image/png" | "image/webp";
   thumbUrl: string;
   previewUrl: string;
   assetUrl: string;
+  fullUrl?: string;
   thumbnailDataUrl?: string;
 };
 
-type ApiState = "idle" | "loading" | "saving" | "exporting" | "uploading";
+type PhotosResponse = {
+  photos: Photo[];
+  total?: number;
+  page?: number;
+  perPage?: number;
+  per_page?: number;
+};
+
+type ApiState =
+  | "idle"
+  | "loading"
+  | "loadingMore"
+  | "saving"
+  | "exporting"
+  | "uploading";
+
+const imageDataUrlCache = new Map<string, string>();
 
 function normalizePiwigoUrl(value: string) {
   return value.trim().replace(/\/+$/, "");
@@ -71,6 +91,15 @@ function connectorApiBase(piwigoBaseUrl: string) {
 
 function connectorPageUrl(piwigoBaseUrl: string) {
   return `${normalizePiwigoUrl(piwigoBaseUrl)}/plugins/canva_connector/connect.php`;
+}
+
+function isSignedMediaUrl(url: string) {
+  try {
+    const parsed = new URL(url);
+    return parsed.searchParams.has("sig") && parsed.searchParams.has("expires");
+  } catch {
+    return false;
+  }
 }
 
 function loadStoredConnection(): StoredConnection | null {
@@ -113,11 +142,15 @@ async function readJsonResponse<T>(res: Response) {
 
 async function imageUrlToDataUrl(
   url: string,
-  token: string,
-  fallbackMimeType: Photo["mimeType"],
+  token: string | undefined,
+  fallbackMimeType: string,
 ) {
+  const cacheKey = `${token || ""}:${url}`;
+  const cached = imageDataUrlCache.get(cacheKey);
+  if (cached) return cached;
+
   const response = await fetch(url, {
-    headers: { Authorization: `Bearer ${token}` },
+    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
   });
   if (!response.ok) {
     throw new Error(`Image download returned HTTP ${response.status}`);
@@ -126,31 +159,35 @@ async function imageUrlToDataUrl(
   const blob = await response.blob();
   const mimeType = blob.type || fallbackMimeType;
 
-  return new Promise<string>((resolve, reject) => {
+  const dataUrl = await new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(String(reader.result));
     reader.onerror = () => reject(new Error("Unable to read image data"));
     reader.readAsDataURL(new Blob([blob], { type: mimeType }));
   });
+
+  imageDataUrlCache.set(cacheKey, dataUrl);
+  return dataUrl;
 }
 
-async function hydrateThumbnails(photos: Photo[], token: string) {
-  return Promise.all(
-    photos.map(async (photo) => {
-      try {
-        return {
-          ...photo,
-          thumbnailDataUrl: await imageUrlToDataUrl(
-            photo.thumbUrl,
-            token,
-            photo.mimeType,
-          ),
-        };
-      } catch {
-        return photo;
+async function runWithConcurrency<T>(
+  items: T[],
+  limit: number,
+  task: (item: T) => Promise<void>,
+) {
+  const queue = [...items];
+  const workers = Array.from(
+    { length: Math.min(limit, queue.length) },
+    async () => {
+      while (queue.length > 0) {
+        const item = queue.shift();
+        if (item) {
+          await task(item);
+        }
       }
-    }),
+    },
   );
+  await Promise.all(workers);
 }
 
 export const App = () => {
@@ -165,7 +202,11 @@ export const App = () => {
   const [albums, setAlbums] = useState<Album[]>([]);
   const [selectedAlbumId, setSelectedAlbumId] = useState<string | undefined>();
   const [photos, setPhotos] = useState<Photo[]>([]);
+  const [photosPage, setPhotosPage] = useState(0);
+  const [photosTotal, setPhotosTotal] = useState<number | undefined>();
+  const [hasMorePhotos, setHasMorePhotos] = useState(false);
   const [lastMessage, setLastMessage] = useState<string | undefined>();
+  const photosRequestId = useRef(0);
 
   const isSupported = useFeatureSupport();
   const addElement = [addElementAtPoint, addElementAtCursor].find((fn) =>
@@ -212,6 +253,14 @@ export const App = () => {
       };
     });
   }, [albums, intl]);
+
+  const selectedAlbum = useMemo(
+    () =>
+      selectedAlbumId
+        ? albums.find((album) => String(album.id) === selectedAlbumId)
+        : undefined,
+    [albums, selectedAlbumId],
+  );
 
   async function connectorFetch<T>(path: string, init: RequestInit = {}) {
     const baseUrl = normalizePiwigoUrl(piwigoBaseUrl);
@@ -318,6 +367,9 @@ export const App = () => {
     setConnection({ connected: false });
     setAlbums([]);
     setPhotos([]);
+    setPhotosPage(0);
+    setPhotosTotal(undefined);
+    setHasMorePhotos(false);
     setSelectedAlbumId(undefined);
     setConnectorToken("");
     setLastMessage(undefined);
@@ -346,27 +398,85 @@ export const App = () => {
     }
   }
 
-  async function loadPhotos(albumId: string, input?: StoredConnection) {
+  async function loadPhotos(
+    albumId: string,
+    input?: StoredConnection,
+    options: { append?: boolean; page?: number } = {},
+  ) {
+    const append = options.append === true;
+    const page = options.page || 1;
+    const requestId = append
+      ? photosRequestId.current
+      : photosRequestId.current + 1;
+    photosRequestId.current = requestId;
     setSelectedAlbumId(albumId);
-    setState("loading");
+    setState(append ? "loadingMore" : "loading");
     setError(undefined);
+    if (!append) {
+      setPhotos([]);
+      setPhotosPage(0);
+      setPhotosTotal(undefined);
+      setHasMorePhotos(false);
+    }
     try {
       const baseUrl = input?.piwigoBaseUrl || piwigoBaseUrl;
       const token = input?.connectorToken || connectorToken;
+      const query = new URLSearchParams({
+        albumId,
+        page: String(page),
+        perPage: String(PHOTOS_PER_PAGE),
+        per_page: String(PHOTOS_PER_PAGE),
+      });
       const res = await fetch(
-        `${connectorApiBase(baseUrl)}/photos.php?albumId=${encodeURIComponent(albumId)}`,
+        `${connectorApiBase(baseUrl)}/photos.php?${query.toString()}`,
         {
           headers: { Authorization: `Bearer ${token}` },
         },
       );
-      const data = await readJsonResponse<{ photos: Photo[] }>(res);
+      const data = await readJsonResponse<PhotosResponse>(res);
       if (!res.ok) {
         throw new Error(
           data.error || `Piwigo Connector returned HTTP ${res.status}`,
         );
       }
-      setPhotos(await hydrateThumbnails(data.photos, token));
+
+      if (requestId !== photosRequestId.current) return;
+
+      const responsePerPage = data.perPage || data.per_page || PHOTOS_PER_PAGE;
+      const responsePage = data.page || page;
+      const expectedTotal = data.total ?? selectedAlbum?.directImages;
+      const pagePhotos = data.photos;
+      const previousPhotos = append ? photos : [];
+      const previousPhotoIds = new Set(previousPhotos.map((photo) => photo.id));
+      const newPhotos = append
+        ? pagePhotos.filter((photo) => !previousPhotoIds.has(photo.id))
+        : pagePhotos;
+      const shownCount = previousPhotos.length + newPhotos.length;
+
+      setPhotos((currentPhotos) => {
+        return append ? [...currentPhotos, ...newPhotos] : newPhotos;
+      });
+      setPhotosPage(responsePage);
+      setPhotosTotal(expectedTotal);
+      setHasMorePhotos(
+        append && newPhotos.length === 0
+          ? false
+          : typeof expectedTotal === "number"
+            ? append
+              ? shownCount < expectedTotal
+              : newPhotos.length < expectedTotal
+            : newPhotos.length >= responsePerPage,
+      );
+      const protectedThumbnails = newPhotos.filter(
+        (photo) => !isSignedMediaUrl(photo.thumbUrl),
+      );
+      void hydrateThumbnailsProgressively(
+        protectedThumbnails,
+        token,
+        requestId,
+      );
     } catch (err) {
+      if (requestId !== photosRequestId.current) return;
       setError(
         err instanceof Error
           ? err.message
@@ -377,8 +487,49 @@ export const App = () => {
             }),
       );
     } finally {
-      setState("idle");
+      if (requestId === photosRequestId.current) {
+        setState("idle");
+      }
     }
+  }
+
+  async function loadMorePhotos() {
+    if (!selectedAlbumId || state === "loadingMore") return;
+    await loadPhotos(selectedAlbumId, undefined, {
+      append: true,
+      page: photosPage + 1,
+    });
+  }
+
+  async function hydrateThumbnailsProgressively(
+    photosToHydrate: Photo[],
+    token: string,
+    requestId: number,
+  ) {
+    await runWithConcurrency(
+      photosToHydrate,
+      THUMBNAIL_HYDRATION_CONCURRENCY,
+      async (photo) => {
+        try {
+          const thumbnailDataUrl = await imageUrlToDataUrl(
+            photo.thumbUrl,
+            token,
+            photo.mimeType,
+          );
+          if (requestId !== photosRequestId.current) return;
+
+          setPhotos((currentPhotos) =>
+            currentPhotos.map((currentPhoto) =>
+              currentPhoto.id === photo.id
+                ? { ...currentPhoto, thumbnailDataUrl }
+                : currentPhoto,
+            ),
+          );
+        } catch {
+          // Keep the fallback placeholder if the protected thumbnail cannot be fetched.
+        }
+      },
+    );
   }
 
   async function insertPhoto(photo: Photo) {
@@ -397,16 +548,17 @@ export const App = () => {
     setState("loading");
     setError(undefined);
     try {
+      const uploadMimeType = photo.assetMimeType || photo.mimeType;
       const dataUrl = await imageUrlToDataUrl(
         photo.assetUrl,
-        connectorToken,
-        photo.mimeType,
+        isSignedMediaUrl(photo.assetUrl) ? undefined : connectorToken,
+        uploadMimeType,
       );
       const { ref } = await upload({
         type: "image",
-        mimeType: photo.mimeType,
+        mimeType: uploadMimeType,
         url: dataUrl,
-        thumbnailUrl: dataUrl,
+        thumbnailUrl: photo.thumbnailDataUrl || dataUrl,
         name: photo.title || photo.filename,
         aiDisclosure: "none",
       });
@@ -642,6 +794,28 @@ export const App = () => {
         {lastMessage && <Text tone="primary">{lastMessage}</Text>}
         {error && <Text tone="critical">{error}</Text>}
 
+        {photos.length > 0 && (
+          <Text>
+            {typeof photosTotal === "number"
+              ? intl.formatMessage(
+                  {
+                    defaultMessage: "Showing {shown} of {total} photos.",
+                    description:
+                      "Status text showing how many Piwigo photos are currently loaded from the selected album.",
+                  },
+                  { shown: photos.length, total: photosTotal },
+                )
+              : intl.formatMessage(
+                  {
+                    defaultMessage: "Showing {shown} photos.",
+                    description:
+                      "Status text shown when the total number of Piwigo photos is unknown.",
+                  },
+                  { shown: photos.length },
+                )}
+          </Text>
+        )}
+
         <Box paddingTop="1u">
           <Grid columns={2} spacing="1u">
             {photos.map((photo) => (
@@ -656,13 +830,34 @@ export const App = () => {
                   { name: photo.title || photo.filename },
                 )}
                 alt={photo.title || photo.filename}
-                thumbnailUrl={photo.thumbnailDataUrl || FALLBACK_THUMBNAIL_URL}
+                thumbnailUrl={
+                  photo.thumbnailDataUrl ||
+                  (isSignedMediaUrl(photo.thumbUrl)
+                    ? photo.thumbUrl
+                    : FALLBACK_THUMBNAIL_URL)
+                }
                 onClick={() => void insertPhoto(photo)}
                 borderRadius="standard"
               />
             ))}
           </Grid>
         </Box>
+
+        {hasMorePhotos && (
+          <Button
+            variant="secondary"
+            stretch
+            loading={state === "loadingMore"}
+            disabled={state === "loading" || state === "loadingMore"}
+            onClick={() => void loadMorePhotos()}
+          >
+            {intl.formatMessage({
+              defaultMessage: "Load more photos",
+              description:
+                "Button label to load the next page of Piwigo photos.",
+            })}
+          </Button>
+        )}
 
         {photos.length === 0 && state !== "loading" && (
           <Text>
