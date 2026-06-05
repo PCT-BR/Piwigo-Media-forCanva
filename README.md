@@ -6,7 +6,7 @@ the open-source Piwigo Canva Connector plugin.
 This repository contains the Canva app only. The Piwigo connector plugin lives
 in a separate repository:
 
-https://github.com/PCT-BR/Canvaconnector-for-piwigo
+https://github.com/PCT-BR/canva_connector
 
 ## Architecture
 

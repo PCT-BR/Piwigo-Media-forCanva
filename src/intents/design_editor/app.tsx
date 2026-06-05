@@ -23,8 +23,7 @@ import { FormattedMessage, useIntl } from "react-intl";
 import * as styles from "styles/components.css";
 
 const STORAGE_KEY = "piwigo-media-connector";
-const CONNECTOR_DOWNLOAD_URL =
-  "https://github.com/PCT-BR/Canvaconnector-for-piwigo";
+const CONNECTOR_DOWNLOAD_URL = "https://github.com/PCT-BR/canva_connector";
 const FALLBACK_THUMBNAIL_URL =
   "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='320' height='240' viewBox='0 0 320 240'%3E%3Crect width='320' height='240' fill='%23edf0f2'/%3E%3Cpath d='M108 156l34-38 26 29 18-20 38 43H96z' fill='%23b8c1cc'/%3E%3Ccircle cx='213' cy='86' r='18' fill='%23b8c1cc'/%3E%3C/svg%3E";
 const PHOTOS_PER_PAGE = 24;
