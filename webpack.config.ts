@@ -1,9 +1,8 @@
 import type { Configuration } from "webpack";
-import { DefinePlugin, optimize } from "webpack";
+import { optimize } from "webpack";
 import path from "path";
 import TerserPlugin from "terser-webpack-plugin";
 import { transform } from "@formatjs/ts-transformer";
-import chalk from "chalk";
 import { config } from "dotenv";
 import { Configuration as DevServerConfiguration } from "webpack-dev-server";
 
@@ -22,27 +21,11 @@ type DevConfig = {
 export function buildConfig({
   devConfig,
   appEntry = path.join(process.cwd(), "src", "index.tsx"),
-  backendHost = process.env.CANVA_BACKEND_HOST,
 }: {
   devConfig?: DevConfig;
   appEntry?: string;
-  backendHost?: string;
 } = {}): Configuration & DevServerConfiguration {
   const mode = devConfig ? "development" : "production";
-
-  if (!backendHost) {
-    console.warn(
-      chalk.yellow.bold("BACKEND_HOST is undefined."),
-      `If your app requires a backend, refer to "Customizing the backend host" in the README.md for more information.`,
-    );
-  } else if (backendHost.includes("localhost") && mode === "production") {
-    console.error(
-      chalk.redBright.bold(
-        "BACKEND_HOST should not be set to localhost for production builds!",
-      ),
-      `Refer to "Customizing the backend host" in the README.md for more information.`,
-    );
-  }
 
   return {
     mode,
@@ -53,7 +36,6 @@ export function buildConfig({
     target: "web",
     resolve: {
       alias: {
-        assets: path.resolve(process.cwd(), "examples/assets"),
         styles: path.resolve(process.cwd(), "styles"),
         src: path.resolve(process.cwd(), "src"),
       },
@@ -169,12 +151,9 @@ export function buildConfig({
       clean: true,
     },
     plugins: [
-      new DefinePlugin({
-        BACKEND_HOST: JSON.stringify(backendHost),
-      }),
-      // Apps can only submit a single JS file via the developer portal
+      // Apps can only submit a single JS file via the developer portal.
       new optimize.LimitChunkCountPlugin({ maxChunks: 1 }),
-    ].filter(Boolean),
+    ],
     ...buildDevConfig(devConfig),
   };
 }
@@ -209,10 +188,6 @@ function buildDevConfig(options?: DevConfig): {
     port,
     client: {
       logging: "verbose",
-    },
-    static: {
-      directory: path.resolve(process.cwd(), "examples/assets"),
-      publicPath: "/assets",
     },
   };
 

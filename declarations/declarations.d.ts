@@ -25,5 +25,3 @@ declare module "*.svg" {
   }>;
   export default content;
 }
-
-declare const BACKEND_HOST: string;

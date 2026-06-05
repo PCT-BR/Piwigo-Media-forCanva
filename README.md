@@ -61,7 +61,7 @@ Upload that file in the Canva Developer Portal translations section.
 
 ## Canva listing URLs
 
-Use these URLs once GitHub Pages is enabled on the connector repository:
+Use these URLs once GitHub Pages is enabled on this Canva app repository:
 
 - Website: `https://pct-br.github.io/Piwigo-Media-forCanva/`
 - Terms: `https://pct-br.github.io/Piwigo-Media-forCanva/terms-and-conditions.html`

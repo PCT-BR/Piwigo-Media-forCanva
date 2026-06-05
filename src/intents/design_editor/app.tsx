@@ -12,7 +12,11 @@ import {
   Title,
 } from "@canva/app-ui-kit";
 import { upload } from "@canva/asset";
-import { addElementAtCursor, addElementAtPoint, requestExport } from "@canva/design";
+import {
+  addElementAtCursor,
+  addElementAtPoint,
+  requestExport,
+} from "@canva/design";
 import { requestOpenExternalUrl } from "@canva/platform";
 import { useEffect, useMemo, useState } from "react";
 import { FormattedMessage, useIntl } from "react-intl";
@@ -119,7 +123,7 @@ async function imageUrlToDataUrl(
   const blob = await response.blob();
   const mimeType = blob.type || fallbackMimeType;
 
-  return await new Promise<string>((resolve, reject) => {
+  return new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(String(reader.result));
     reader.onerror = () => reject(new Error("Unable to read image data"));
@@ -167,13 +171,25 @@ export const App = () => {
       const count =
         album.directImages === album.totalImages
           ? `${album.totalImages}`
-          : `${album.directImages} direct / ${album.totalImages} total`;
+          : intl.formatMessage(
+              {
+                defaultMessage: "{directImages} direct / {totalImages} total",
+                description:
+                  "Album image counts shown in the album selector when direct and total image counts differ.",
+              },
+              {
+                directImages: album.directImages,
+                totalImages: album.totalImages,
+              },
+            );
       return {
         value: String(album.id),
+        // Album names come from the user's Piwigo instance; only the count suffix is app UI.
+        // eslint-disable-next-line formatjs/no-literal-string-in-object
         label: `${albumPath(album)} (${count})`,
       };
     });
-  }, [albums]);
+  }, [albums, intl]);
 
   async function connectorFetch<T>(path: string, init: RequestInit = {}) {
     const baseUrl = normalizePiwigoUrl(piwigoBaseUrl);
@@ -241,7 +257,9 @@ export const App = () => {
       });
       const data = await readJsonResponse<ConnectionState>(res);
       if (!res.ok) {
-        throw new Error(data.error || `Piwigo Connector returned HTTP ${res.status}`);
+        throw new Error(
+          data.error || `Piwigo Connector returned HTTP ${res.status}`,
+        );
       }
 
       const stored = { piwigoBaseUrl: nextUrl, connectorToken: nextToken };
@@ -291,7 +309,9 @@ export const App = () => {
     });
     const albumsData = await readJsonResponse<Album[]>(data);
     if (!data.ok) {
-      throw new Error(albumsData.error || `Piwigo Connector returned HTTP ${data.status}`);
+      throw new Error(
+        albumsData.error || `Piwigo Connector returned HTTP ${data.status}`,
+      );
     }
 
     setAlbums(albumsData);
@@ -319,7 +339,9 @@ export const App = () => {
       );
       const data = await readJsonResponse<{ photos: Photo[] }>(res);
       if (!res.ok) {
-        throw new Error(data.error || `Piwigo Connector returned HTTP ${res.status}`);
+        throw new Error(
+          data.error || `Piwigo Connector returned HTTP ${res.status}`,
+        );
       }
       setPhotos(data.photos);
     } catch (err) {
@@ -408,7 +430,8 @@ export const App = () => {
         setLastMessage(
           intl.formatMessage({
             defaultMessage: "Export canceled.",
-            description: "Message shown when the user cancels the Canva export.",
+            description:
+              "Message shown when the user cancels the Canva export.",
           }),
         );
         return;
@@ -487,7 +510,11 @@ export const App = () => {
             control={(props) => (
               <TextInput
                 {...props}
-                placeholder="https://photos.example.com"
+                placeholder={intl.formatMessage({
+                  defaultMessage: "https://photos.example.com",
+                  description:
+                    "Placeholder example for the Piwigo instance URL input.",
+                })}
                 onChange={setPiwigoBaseUrl}
               />
             )}
@@ -525,7 +552,8 @@ export const App = () => {
           >
             {intl.formatMessage({
               defaultMessage: "Test and save",
-              description: "Button label to test and save the Piwigo connection.",
+              description:
+                "Button label to test and save the Piwigo connection.",
             })}
           </Button>
         </Rows>
@@ -537,7 +565,12 @@ export const App = () => {
     <div className={styles.scrollContainer}>
       <Rows spacing="2u">
         <Rows spacing="0.5u">
-          <Title size="small">Piwigo Media</Title>
+          <Title size="small">
+            <FormattedMessage
+              defaultMessage="Piwigo Media"
+              description="Title of the connected Piwigo media browser."
+            />
+          </Title>
           <Text>
             <FormattedMessage
               defaultMessage="Connected to {url}"
