@@ -63,10 +63,10 @@ Upload that file in the Canva Developer Portal translations section.
 
 Use these URLs once GitHub Pages is enabled on the connector repository:
 
-- Website: `https://pct-br.github.io/Canvaconnector-for-piwigo/`
-- Terms: `https://pct-br.github.io/Canvaconnector-for-piwigo/terms-and-conditions.html`
-- Privacy policy: `https://pct-br.github.io/Canvaconnector-for-piwigo/privacy-policy.html`
-- Support: `https://pct-br.github.io/Canvaconnector-for-piwigo/support.html`
+- Website: `https://pct-br.github.io/Piwigo-Media-forCanva/`
+- Terms: `https://pct-br.github.io/Piwigo-Media-forCanva/terms-and-conditions.html`
+- Privacy policy: `https://pct-br.github.io/Piwigo-Media-forCanva/privacy-policy.html`
+- Support: `https://pct-br.github.io/Piwigo-Media-forCanva/support.html`
 
 ## Reviewer note
 

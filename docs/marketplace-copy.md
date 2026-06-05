@@ -29,10 +29,10 @@ Piwigo is self-hosted software with user-controlled domains. To avoid routing us
 
 ## Canva listing URLs
 
-- Company / website: `https://pct-br.github.io/Canvaconnector-for-piwigo/`
-- Terms: `https://pct-br.github.io/Canvaconnector-for-piwigo/terms-and-conditions.html`
-- Privacy policy: `https://pct-br.github.io/Canvaconnector-for-piwigo/privacy-policy.html`
-- Support: `https://pct-br.github.io/Canvaconnector-for-piwigo/support.html`
+- Company / website: `https://pct-br.github.io/Piwigo-Media-forCanva/`
+- Terms: `https://pct-br.github.io/Piwigo-Media-forCanva/terms-and-conditions.html`
+- Privacy policy: `https://pct-br.github.io/Piwigo-Media-forCanva/privacy-policy.html`
+- Support: `https://pct-br.github.io/Piwigo-Media-forCanva/support.html`
 
 ## French working copy
 
