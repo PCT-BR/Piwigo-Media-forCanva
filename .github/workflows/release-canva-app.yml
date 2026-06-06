@@ -1,0 +1,74 @@
+name: Release Canva app
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/release-canva-app.yml
+      - declarations/**
+      - scripts/**
+      - src/**
+      - styles/**
+      - package-lock.json
+      - package.json
+      - tsconfig.json
+      - webpack.config.ts
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      RELEASE_TAG: piwigo-media-for-canva-v1.0.0
+      RELEASE_TITLE: Piwigo Media for Canva 1.0.0
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build app bundle and translations
+        run: npm run build
+
+      - name: Prepare release assets
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          test -s dist/app.js
+          test -s dist/messages_en.json
+
+          cp dist/app.js app.js
+          cp dist/messages_en.json messages_en.json
+
+          echo "app.js sha256:"
+          sha256sum app.js
+          echo "messages_en.json sha256:"
+          sha256sum messages_en.json
+
+      - name: Create or update GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            gh release upload "$RELEASE_TAG" app.js messages_en.json --clobber
+          else
+            gh release create "$RELEASE_TAG" app.js messages_en.json \
+              --target "$GITHUB_SHA" \
+              --title "$RELEASE_TITLE" \
+              --notes "Canva Developer Portal assets: JavaScript bundle and English UI strings."
+          fi
