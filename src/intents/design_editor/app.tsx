@@ -23,7 +23,8 @@ import { FormattedMessage, useIntl } from "react-intl";
 import * as styles from "styles/components.css";
 
 const STORAGE_KEY = "piwigo-media-connector";
-const CONNECTOR_DOWNLOAD_URL = "https://github.com/PCT-BR/canva_connector";
+const CONNECTOR_DOWNLOAD_URL =
+  "https://github.com/PCT-BR/canva_connector/releases";
 const FALLBACK_THUMBNAIL_URL =
   "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='320' height='240' viewBox='0 0 320 240'%3E%3Crect width='320' height='240' fill='%23edf0f2'/%3E%3Cpath d='M108 156l34-38 26 29 18-20 38 43H96z' fill='%23b8c1cc'/%3E%3Ccircle cx='213' cy='86' r='18' fill='%23b8c1cc'/%3E%3C/svg%3E";
 const PHOTOS_PER_PAGE = 24;
@@ -79,6 +80,12 @@ type ApiState =
   | "uploading";
 
 const imageDataUrlCache = new Map<string, string>();
+
+class HttpStatusError extends Error {
+  constructor(readonly status: number) {
+    super(`HTTP ${status}`);
+  }
+}
 
 function normalizePiwigoUrl(value: string) {
   return value.trim().replace(/\/+$/, "");
@@ -152,7 +159,7 @@ async function imageUrlToDataUrl(
     headers: token ? { Authorization: `Bearer ${token}` } : undefined,
   });
   if (!response.ok) {
-    throw new Error(`Image download returned HTTP ${response.status}`);
+    throw new HttpStatusError(response.status);
   }
 
   const blob = await response.blob();
@@ -273,19 +280,40 @@ export const App = () => {
     });
     const body = await readJsonResponse<T>(res);
     if (!res.ok) {
-      throw new Error(
-        body.error ||
-          intl.formatMessage(
-            {
-              defaultMessage: "Piwigo Connector returned HTTP {status}",
-              description:
-                "Error shown when the Piwigo Connector API returns an unexpected HTTP status.",
-            },
-            { status: res.status },
-          ),
-      );
+      throw new HttpStatusError(res.status);
     }
     return body;
+  }
+
+  function connectorHttpErrorMessage(status: number) {
+    if (status === 401 || status === 403) {
+      return intl.formatMessage({
+        defaultMessage:
+          "The Piwigo Connector token is missing, invalid, or no longer authorized.",
+        description:
+          "Error shown when the Piwigo Connector rejects the saved token.",
+      });
+    }
+
+    return intl.formatMessage(
+      {
+        defaultMessage: "Piwigo Connector returned HTTP {status}.",
+        description:
+          "Error shown when the Piwigo Connector API returns an unexpected HTTP status.",
+      },
+      { status },
+    );
+  }
+
+  function imageHttpErrorMessage(status: number) {
+    return intl.formatMessage(
+      {
+        defaultMessage: "Image download returned HTTP {status}.",
+        description:
+          "Error shown when a Piwigo image download returns an unexpected HTTP status.",
+      },
+      { status },
+    );
   }
 
   async function openConnector() {
@@ -327,9 +355,7 @@ export const App = () => {
       });
       const data = await readJsonResponse<ConnectionState>(res);
       if (!res.ok) {
-        throw new Error(
-          data.error || `Piwigo Connector returned HTTP ${res.status}`,
-        );
+        throw new HttpStatusError(res.status);
       }
 
       const stored = { piwigoBaseUrl: nextUrl, connectorToken: nextToken };
@@ -348,8 +374,8 @@ export const App = () => {
       setConnectorToken(previousToken);
       setConnection({ connected: false });
       setError(
-        err instanceof Error
-          ? err.message
+        err instanceof HttpStatusError
+          ? connectorHttpErrorMessage(err.status)
           : intl.formatMessage({
               defaultMessage: "Connection failed.",
               description:
@@ -382,9 +408,7 @@ export const App = () => {
     });
     const albumsData = await readJsonResponse<Album[]>(data);
     if (!data.ok) {
-      throw new Error(
-        albumsData.error || `Piwigo Connector returned HTTP ${data.status}`,
-      );
+      throw new HttpStatusError(data.status);
     }
 
     setAlbums(albumsData);
@@ -434,9 +458,7 @@ export const App = () => {
       );
       const data = await readJsonResponse<PhotosResponse>(res);
       if (!res.ok) {
-        throw new Error(
-          data.error || `Piwigo Connector returned HTTP ${res.status}`,
-        );
+        throw new HttpStatusError(res.status);
       }
 
       if (requestId !== photosRequestId.current) return;
@@ -477,8 +499,8 @@ export const App = () => {
     } catch (err) {
       if (requestId !== photosRequestId.current) return;
       setError(
-        err instanceof Error
-          ? err.message
+        err instanceof HttpStatusError
+          ? connectorHttpErrorMessage(err.status)
           : intl.formatMessage({
               defaultMessage: "Unable to load photos.",
               description:
@@ -565,7 +587,14 @@ export const App = () => {
         type: "image",
         ref,
         altText: {
-          text: photo.title || photo.filename || "Piwigo image",
+          text:
+            photo.title ||
+            photo.filename ||
+            intl.formatMessage({
+              defaultMessage: "Piwigo image",
+              description:
+                "Fallback alt text for an inserted Piwigo image with no title or filename.",
+            }),
           decorative: false,
         },
       });
@@ -578,8 +607,8 @@ export const App = () => {
       );
     } catch (err) {
       setError(
-        err instanceof Error
-          ? err.message
+        err instanceof HttpStatusError
+          ? imageHttpErrorMessage(err.status)
           : intl.formatMessage({
               defaultMessage: "Unable to insert the image.",
               description:
@@ -629,8 +658,8 @@ export const App = () => {
       await loadPhotos(selectedAlbumId);
     } catch (err) {
       setError(
-        err instanceof Error
-          ? err.message
+        err instanceof HttpStatusError
+          ? connectorHttpErrorMessage(err.status)
           : intl.formatMessage({
               defaultMessage: "Unable to export the design.",
               description:
