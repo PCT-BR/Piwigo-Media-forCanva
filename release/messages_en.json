@@ -1,0 +1,134 @@
+{
+  "/AuXLH": {
+    "defaultMessage": "Install the connector in Piwigo, open it from here, authorize Canva, copy the connector token, then paste it below.",
+    "description": "Explanation shown before the user connects their Piwigo Connector."
+  },
+  "0waSes": {
+    "defaultMessage": "Piwigo URL",
+    "description": "Label for the Piwigo instance URL input."
+  },
+  "1G1tGC": {
+    "defaultMessage": "Image download returned HTTP {status}.",
+    "description": "Error shown when a Piwigo image download returns an unexpected HTTP status."
+  },
+  "4DNqI3": {
+    "defaultMessage": "Image added to the design.",
+    "description": "Confirmation shown after inserting a Piwigo image into the Canva design."
+  },
+  "68ibcx": {
+    "defaultMessage": "Open Piwigo Connector",
+    "description": "Button label to open the Piwigo Connector token page."
+  },
+  "81nHDV": {
+    "defaultMessage": "Disconnect",
+    "description": "Button label to remove the saved Piwigo Connector token from Canva."
+  },
+  "9IOElB": {
+    "defaultMessage": "Album",
+    "description": "Label for the Piwigo album selector."
+  },
+  "Fx6W6n": {
+    "defaultMessage": "No photos directly in this album. If it is a parent folder, choose a sub-album.",
+    "description": "Empty state shown when a selected Piwigo album has no direct photos."
+  },
+  "I/ZSes": {
+    "defaultMessage": "Connect Piwigo",
+    "description": "Title of the Piwigo connection screen."
+  },
+  "MFZSp4": {
+    "defaultMessage": "Unable to export the design.",
+    "description": "Error shown when the Canva design cannot be exported to Piwigo."
+  },
+  "P+B1J1": {
+    "defaultMessage": "Export canceled.",
+    "description": "Message shown when the user cancels the Canva export."
+  },
+  "R2MDDm": {
+    "defaultMessage": "Add {name}",
+    "description": "Accessible label for adding a Piwigo photo to the design."
+  },
+  "SlpLaF": {
+    "defaultMessage": "Save design to this album",
+    "description": "Button label to export the current Canva design to the selected Piwigo album."
+  },
+  "VV7AhT": {
+    "defaultMessage": "Showing {shown} of {total} photos.",
+    "description": "Status text showing how many Piwigo photos are currently loaded from the selected album."
+  },
+  "XDeQ/R": {
+    "defaultMessage": "{directImages} direct / {totalImages} total",
+    "description": "Album image counts shown in the album selector when direct and total image counts differ."
+  },
+  "XIwi6+": {
+    "defaultMessage": "Piwigo Connector returned HTTP {status}.",
+    "description": "Error shown when the Piwigo Connector API returns an unexpected HTTP status."
+  },
+  "ZL/lgK": {
+    "defaultMessage": "Connector token",
+    "description": "Label for the Piwigo Connector token input."
+  },
+  "ZoDGME": {
+    "defaultMessage": "Connected to {url}",
+    "description": "Status text showing the connected Piwigo URL."
+  },
+  "ZxC125": {
+    "defaultMessage": "Unable to insert the image.",
+    "description": "Error shown when a Piwigo image cannot be inserted into Canva."
+  },
+  "c8LYuC": {
+    "defaultMessage": "Showing {shown} photos.",
+    "description": "Status text shown when the total number of Piwigo photos is unknown."
+  },
+  "cdEpu/": {
+    "defaultMessage": "Piwigo Media",
+    "description": "Title of the connected Piwigo media browser."
+  },
+  "d22hQ+": {
+    "defaultMessage": "Unable to load photos.",
+    "description": "Error shown when photos cannot be loaded from a Piwigo album."
+  },
+  "lT8kLV": {
+    "defaultMessage": "Connection page was not opened.",
+    "description": "Message shown when the user cancels opening the Piwigo Connector page."
+  },
+  "mXD4R6": {
+    "defaultMessage": "Piwigo image",
+    "description": "Fallback alt text for an inserted Piwigo image with no title or filename."
+  },
+  "o9rV8j": {
+    "defaultMessage": "Design saved to Piwigo.",
+    "description": "Confirmation shown after exporting a Canva design to Piwigo."
+  },
+  "pnzI0P": {
+    "defaultMessage": "The Piwigo Connector token is missing, invalid, or no longer authorized.",
+    "description": "Error shown when the Piwigo Connector rejects the saved token."
+  },
+  "po/3Rr": {
+    "defaultMessage": "Connected to the Piwigo Connector.",
+    "description": "Confirmation shown after successfully connecting to the Piwigo Connector."
+  },
+  "rDMpZ9": {
+    "defaultMessage": "Test and save",
+    "description": "Button label to test and save the Piwigo connection."
+  },
+  "t6rLBK": {
+    "defaultMessage": "https://photos.example.com",
+    "description": "Placeholder example for the Piwigo instance URL input."
+  },
+  "uq57M5": {
+    "defaultMessage": "Load more photos",
+    "description": "Button label to load the next page of Piwigo photos."
+  },
+  "uxMMp5": {
+    "defaultMessage": "Image insertion is not available in this Canva context.",
+    "description": "Error shown when Canva does not support inserting an image in the current design context."
+  },
+  "w8RnQS": {
+    "defaultMessage": "Download Piwigo Connector",
+    "description": "Button label to open the Piwigo Connector download page."
+  },
+  "xXRvvA": {
+    "defaultMessage": "Connection failed.",
+    "description": "Error shown when the user cannot connect their Piwigo Connector."
+  }
+}

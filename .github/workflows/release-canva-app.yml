@@ -7,14 +7,7 @@ on:
       - main
     paths:
       - .github/workflows/release-canva-app.yml
-      - declarations/**
-      - scripts/**
-      - src/**
-      - styles/**
-      - package-lock.json
-      - package.json
-      - tsconfig.json
-      - webpack.config.ts
+      - release/**
 
 permissions:
   contents: write
@@ -29,33 +22,18 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 24
-          cache: npm
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Build app bundle and translations
-        run: npm run build
-
-      - name: Prepare release assets
+      - name: Verify release assets
         shell: bash
         run: |
           set -euo pipefail
 
-          test -s dist/app.js
-          test -s dist/messages_en.json
-
-          cp dist/app.js app.js
-          cp dist/messages_en.json messages_en.json
+          test -s release/app.js
+          test -s release/messages_en.json
 
           echo "app.js sha256:"
-          sha256sum app.js
+          sha256sum release/app.js
           echo "messages_en.json sha256:"
-          sha256sum messages_en.json
+          sha256sum release/messages_en.json
 
       - name: Create or update GitHub release
         env:
@@ -65,9 +43,9 @@ jobs:
           set -euo pipefail
 
           if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
-            gh release upload "$RELEASE_TAG" app.js messages_en.json --clobber
+            gh release upload "$RELEASE_TAG" release/app.js release/messages_en.json --clobber
           else
-            gh release create "$RELEASE_TAG" app.js messages_en.json \
+            gh release create "$RELEASE_TAG" release/app.js release/messages_en.json \
               --target "$GITHUB_SHA" \
               --title "$RELEASE_TITLE" \
               --notes "Canva Developer Portal assets: JavaScript bundle and English UI strings."
